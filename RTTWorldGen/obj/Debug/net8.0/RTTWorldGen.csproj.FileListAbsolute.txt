@@ -1,0 +1,15 @@
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\bin\Debug\net8.0\RTTWorldGen.exe
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\bin\Debug\net8.0\RTTWorldGen.deps.json
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\bin\Debug\net8.0\RTTWorldGen.runtimeconfig.json
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\bin\Debug\net8.0\RTTWorldGen.dll
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\bin\Debug\net8.0\RTTWorldGen.pdb
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.AssemblyInfoInputs.cache
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.AssemblyInfo.cs
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.csproj.CoreCompileInputs.cache
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.sourcelink.json
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.dll
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\refint\RTTWorldGen.dll
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.pdb
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\RTTWorldGen.genruntimeconfig.cache
+c:\Users\gmfk0\OneDrive\Documents\RTT WorldGen\RTTWorldGen\obj\Debug\net8.0\ref\RTTWorldGen.dll
