@@ -1,8 +1,14 @@
-﻿enum SpectralType {A, F, G, K, M, L, D}
+﻿using System.Collections;
+using System.Security.Cryptography.X509Certificates;
+
+enum SpectralType {A, F, G, K, M, L, D}
 enum CompanionOrbit {None, Tight, Close, Moderate, Distant}
 enum OrbitRange {None, Epistellar, InnerZone, OuterZone}
-enum Rings {None, Minor, Complex}
+enum Ring {None, Minor, Complex}
 enum DwarfPlanetType {Arean, Hebean, Meltball, Promethean, Rockball, Snowball, Stygian, Vesperian}
+enum TerrestrialPlanetType {Acheronian, Arid, JaniLithic, Oceanic, Tectonic, Telluric}
+enum HelianPlanetType {Helian, Asphodelian, Panthalassic}
+enum JovianPlanetType {Chthonian, Jovian}
 
 static class RandomTools
 {
@@ -291,8 +297,8 @@ class Star
         {
             int orbit_roll = RandomTools.RollD6(1) - (spectral_type == SpectralType.L ? 1 : 0);
             if (orbit_roll <= 1) { orbits.Add(new AsteroidBelt(OrbitRange.Epistellar)); }
-            else if (orbit_roll <= 2) { orbits.Add(new DwarfPlanet(OrbitRange.Epistellar, false, false, false)); }
-            else if (orbit_roll <= 3) { orbits.Add(new TerrestrialPlanet(OrbitRange.Epistellar)); }
+            else if (orbit_roll <= 2) { orbits.Add(new DwarfPlanet(OrbitRange.Epistellar, false, false, false, false)); }
+            else if (orbit_roll <= 3) { orbits.Add(new TerrestrialPlanet(OrbitRange.Epistellar, false)); }
             else if (orbit_roll <= 4) { orbits.Add(new HelianPlanet(OrbitRange.Epistellar)); }
             else { orbits.Add(new JovianPlanet(OrbitRange.Epistellar)); }
         }
@@ -300,8 +306,8 @@ class Star
         {
             int orbit_roll = RandomTools.RollD6(1) - (spectral_type == SpectralType.L ? 1 : 0);
             if (orbit_roll <= 1) { orbits.Add(new AsteroidBelt(OrbitRange.InnerZone)); }
-            else if (orbit_roll <= 2) { orbits.Add(new DwarfPlanet(OrbitRange.InnerZone, false, false, false)); }
-            else if (orbit_roll <= 3) { orbits.Add(new TerrestrialPlanet(OrbitRange.InnerZone)); }
+            else if (orbit_roll <= 2) { orbits.Add(new DwarfPlanet(OrbitRange.InnerZone, false, false, false, false)); }
+            else if (orbit_roll <= 3) { orbits.Add(new TerrestrialPlanet(OrbitRange.InnerZone, false)); }
             else if (orbit_roll <= 4) { orbits.Add(new HelianPlanet(OrbitRange.InnerZone)); }
             else { orbits.Add(new JovianPlanet(OrbitRange.InnerZone)); }
         }
@@ -309,10 +315,19 @@ class Star
         {
             int orbit_roll = RandomTools.RollD6(1) - (spectral_type == SpectralType.L ? 1 : 0);
             if (orbit_roll <= 1) { orbits.Add(new AsteroidBelt(OrbitRange.OuterZone)); }
-            else if (orbit_roll <= 2) { orbits.Add(new DwarfPlanet(OrbitRange.OuterZone, false, false, false)); }
-            else if (orbit_roll <= 3) { orbits.Add(new TerrestrialPlanet(OrbitRange.OuterZone)); }
+            else if (orbit_roll <= 2) { orbits.Add(new DwarfPlanet(OrbitRange.OuterZone, false, false, false, false)); }
+            else if (orbit_roll <= 3) { orbits.Add(new TerrestrialPlanet(OrbitRange.OuterZone, false)); }
             else if (orbit_roll <= 4) { orbits.Add(new HelianPlanet(OrbitRange.OuterZone)); }
             else { orbits.Add(new JovianPlanet(OrbitRange.OuterZone)); }
+        }
+
+        if (spectral_type == SpectralType.D || luminosity_class == 3)
+        {
+            int orbits_affected = RandomTools.RollD6(1);
+            for (int i=0; i < Math.Min(orbits_affected, orbits.Count); i++)
+            {
+                orbits[i].AffectFromStarExpansion();
+            }
         }
     }
 }
@@ -323,20 +338,33 @@ class Orbit
     public Orbit(OrbitRange orbit_range)
     {
         this.orbit_range = orbit_range;
-        DetermineSatellites();
     }
 
     public virtual void DetermineSatellites()
     {
         return;
     }
+
+    public virtual void AffectFromStarExpansion()
+    {
+
+    }
+
+    public virtual string ToString()
+    {
+        return "Orbit";
+    }
 }
 
 class Planetoid : Orbit
 {
-    int size;
+    public int size;
 
     public Planetoid(OrbitRange orbit_range) : base(orbit_range)
+    {
+    }
+    
+    public virtual void GenerateWorld()
     {
     }
 }
@@ -347,6 +375,7 @@ class AsteroidBelt : Orbit
 
     public AsteroidBelt(OrbitRange orbit_range) : base(orbit_range)
     {
+        DetermineSatellites();
     }
 
     public override void DetermineSatellites()
@@ -354,27 +383,45 @@ class AsteroidBelt : Orbit
         int satellite_roll = RandomTools.RollD6(1);
         if (satellite_roll >= 5)
         {
-            dwarf_planet = new DwarfPlanet(orbit_range, true, false, false);
+            dwarf_planet = new DwarfPlanet(orbit_range, true, false, false, true);
         }
+    }
+
+    public override void AffectFromStarExpansion()
+    {
+        if (dwarf_planet != null)
+        {
+            dwarf_planet.AffectFromStarExpansion();
+        }
+    }
+
+    public override string ToString()
+    {
+        string to_append = "";
+        if (dwarf_planet != null) { to_append += ":\n   " + dwarf_planet.ToString(); }
+        return "Asteroid Belt" + to_append;
     }
 }
 
 class DwarfPlanet : Planetoid
 {
-    public DwarfPlanet companion = null;
-    public DwarfPlanetType type;
+    private DwarfPlanet companion = null;
+    private DwarfPlanetType type;
     
-    public DwarfPlanet(OrbitRange orbit_range, bool asteroid_belt_member, bool helian_sat, bool jovian_sat) : base(orbit_range)
+    public DwarfPlanet(OrbitRange orbit_range, bool asteroid_belt_member, bool helian_sat, bool jovian_sat, bool is_satellite) : base(orbit_range)
     {
-        return;
+        if (!is_satellite)
+        {
+            DetermineSatellites();
+        }
+        DetermineType(asteroid_belt_member, helian_sat, jovian_sat);
     }
     public override void DetermineSatellites()
     {
         int satellite_roll = RandomTools.RollD6(1);
         if (satellite_roll >= 6)
         {
-            companion = new DwarfPlanet(orbit_range, false, false, false);
-            companion.companion = this;
+            companion = new DwarfPlanet(orbit_range, false, false, false, true);
         }
     }
     public void DetermineType(bool asteroid_belt_member, bool helian_sat, bool jovian_sat)
@@ -388,22 +435,89 @@ class DwarfPlanet : Planetoid
             {
                 int subroll = RandomTools.RollD6(1);
                 if (subroll <= 4) { type = DwarfPlanetType.Hebean; }
-                else { type = DwarfPlanetType.Promethean }
+                else { type = DwarfPlanetType.Promethean; }
             }
         }
         else if (orbit_range == OrbitRange.InnerZone)
         {
             roll += (asteroid_belt_member ? -2 : 0) + (helian_sat ? 1 : 0) + (jovian_sat ? 2 : 0);
+
+            if (roll <= 4) { type = DwarfPlanetType.Rockball; }
+            else if (roll <= 6) { type = DwarfPlanetType.Arean; }
+            else if (roll <= 7) { type = DwarfPlanetType.Meltball; }
+            else if (roll <= 8)
+            {
+                int subroll = RandomTools.RollD6(1);
+                if (subroll <= 4) { type = DwarfPlanetType.Hebean; }
+                else { type = DwarfPlanetType.Promethean; }
+            }
+        }
+        else if (orbit_range == OrbitRange.OuterZone)
+        {
+            roll += (asteroid_belt_member ? -1 : 0) + (helian_sat ? 1 : 0) + (jovian_sat ? 2 : 0);
+
+            if (roll <= 0) { type = DwarfPlanetType.Rockball; }
+            else if (roll <= 4) { type = DwarfPlanetType.Snowball; }
+            else if (roll <= 6) { type = DwarfPlanetType.Rockball; }
+            else if (roll <= 7) { type = DwarfPlanetType.Meltball; }
+            else if (roll <= 8)
+            {
+                int subroll = RandomTools.RollD6(1);
+                if (subroll <= 3) { type = DwarfPlanetType.Hebean; }
+                else if (subroll <= 5) { type = DwarfPlanetType.Arean; }
+                else { type = DwarfPlanetType.Promethean; }
+            }
+        }
+    }
+
+    public override void GenerateWorld()
+    {
+        switch (type)
+        {
+            case DwarfPlanetType.Arean:
+                this.size = RandomTools.RollD6()-1;
+                break;
+        }
+    }
+
+    public override string ToString()
+    {
+        string type_string = "";
+        switch (type)
+        {
+            case DwarfPlanetType.Arean: type_string = "Arean"; break;
+            case DwarfPlanetType.Hebean: type_string = "Hebean"; break;
+            case DwarfPlanetType.Meltball: type_string = "Meltball"; break;
+            case DwarfPlanetType.Promethean: type_string = "Promethean"; break;
+            case DwarfPlanetType.Rockball: type_string = "Rockball"; break;
+            case DwarfPlanetType.Snowball: type_string = "Snowball"; break;
+            case DwarfPlanetType.Stygian: type_string = "Stygian"; break;
+            case DwarfPlanetType.Vesperian: type_string = "Vesperian"; break;
+        }
+        string to_append = "";
+        if (companion != null) { to_append += ":\n   " + companion.ToString(); }
+        return type_string + to_append;
+    }
+
+    public override void AffectFromStarExpansion()
+    {
+        type = DwarfPlanetType.Stygian;
+        if (companion != null)
+        {
+            companion.AffectFromStarExpansion();
         }
     }
 }
 
 class TerrestrialPlanet : Planetoid
 {
-    public DwarfPlanet satellite = null;
+    private DwarfPlanet satellite = null;
+    private TerrestrialPlanetType type;
 
-    public TerrestrialPlanet(OrbitRange orbit_range) : base(orbit_range)
+    public TerrestrialPlanet(OrbitRange orbit_range, bool is_satellite) : base(orbit_range)
     {
+        if (!is_satellite) { DetermineSatellites(); }
+        DetermineType();
     }
 
     public override void DetermineSatellites()
@@ -411,17 +525,74 @@ class TerrestrialPlanet : Planetoid
         int satellite_roll = RandomTools.RollD6(1);
         if (satellite_roll >= 5)
         {
-            satellite = new DwarfPlanet(orbit_range, false, false, false);
+            satellite = new DwarfPlanet(orbit_range, false, false, false, true);
         }
+    }
+
+    public void DetermineType()
+    {
+        if (orbit_range == OrbitRange.Epistellar)
+        {
+            int roll = RandomTools.RollD6(1);
+            if (roll <= 4) { type = TerrestrialPlanetType.JaniLithic; }
+            //RTT World Gen has Vesperian here, which is for dwarf planets only so idk why it's there I'm ignoring it
+            else if (roll <= 6) { type = TerrestrialPlanetType.Tectonic; }
+        }
+        else if (orbit_range == OrbitRange.InnerZone)
+        {
+            int roll = RandomTools.RollD6(2);
+            if (roll <= 4) { type = TerrestrialPlanetType.Telluric; }
+            else if (roll <= 6) { type = TerrestrialPlanetType.Arid; }
+            else if (roll <= 7) { type = TerrestrialPlanetType.Tectonic; }
+            else if (roll <= 9) { type = TerrestrialPlanetType.Oceanic; }
+            else if (roll <= 10) { type = TerrestrialPlanetType.Tectonic; }
+            else if (roll <= 12) { type = TerrestrialPlanetType.Telluric; }
+        }
+        else if (orbit_range == OrbitRange.OuterZone)
+        {
+            int roll = RandomTools.RollD6(1);
+            if (roll <= 4) { type = TerrestrialPlanetType.Arid; }
+            else if (roll <= 6) { type = TerrestrialPlanetType.Tectonic; }
+            else if (roll <= 8) { type = TerrestrialPlanetType.Oceanic; }
+        }
+    }
+
+    public override void AffectFromStarExpansion()
+    {
+        type = TerrestrialPlanetType.Acheronian;
+        if (satellite != null)
+        {
+            satellite.AffectFromStarExpansion();
+        }
+    }
+
+    public override string ToString()
+    {
+        string type_string = "";
+        switch (type)
+        {
+            case TerrestrialPlanetType.Acheronian: type_string = "Acheronian"; break;
+            case TerrestrialPlanetType.Arid: type_string = "Arid"; break;
+            case TerrestrialPlanetType.JaniLithic: type_string = "JaniLithic"; break;
+            case TerrestrialPlanetType.Oceanic: type_string = "Oceanic"; break;
+            case TerrestrialPlanetType.Tectonic: type_string = "Tectonic"; break;
+            case TerrestrialPlanetType.Telluric: type_string = "Telluric"; break;
+        }
+        string to_append = "";
+        if (satellite != null) { to_append += ":\n   " + satellite.ToString(); }
+        return type_string + to_append;
     }
 }
 
 class HelianPlanet : Planetoid
 {
-    public List<Planetoid> satellites = new List<Planetoid>();
+    private List<Planetoid> satellites = new List<Planetoid>();
+    private HelianPlanetType type;
 
     public HelianPlanet(OrbitRange orbit_range) : base(orbit_range)
     {
+        DetermineSatellites();
+        DetermineType();
     }
 
     public override void DetermineSatellites()
@@ -432,24 +603,77 @@ class HelianPlanet : Planetoid
             int sub_satellite_roll = RandomTools.RollD6(1);
             if (sub_satellite_roll == 6)
             {
-                satellites.Add(new TerrestrialPlanet(orbit_range));
+                satellites.Add(new TerrestrialPlanet(orbit_range, true));
                 satellite_roll--;
             }
             for (int i=0; i<satellite_roll; i++)
             {
-                satellites.Add(new DwarfPlanet(orbit_range, false, true, false));
+                satellites.Add(new DwarfPlanet(orbit_range, false, true, false, true));
             }
         }
+    }
+
+    public void DetermineType()
+    {
+        if (orbit_range == OrbitRange.Epistellar)
+        {
+            int roll = RandomTools.RollD6(1);
+            if (roll <= 5) { type = HelianPlanetType.Helian; }
+            else { type = HelianPlanetType.Asphodelian; }
+        }
+        else if (orbit_range == OrbitRange.InnerZone)
+        {
+            int roll = RandomTools.RollD6(1);
+            if (roll <= 4) { type = HelianPlanetType.Helian; }
+            else { type = HelianPlanetType.Panthalassic; }
+        }
+        else if (orbit_range == OrbitRange.OuterZone)
+        {
+            type = HelianPlanetType.Helian;
+        }
+    }
+
+    public override void AffectFromStarExpansion()
+    {
+        type = HelianPlanetType.Asphodelian;
+        foreach (Planetoid p in satellites)
+        {
+            p.AffectFromStarExpansion();
+        }
+    }
+
+    public override string ToString()
+    {
+        string type_string = "";
+        switch (type)
+        {
+            case HelianPlanetType.Asphodelian: type_string = "Asphodelian"; break;
+            case HelianPlanetType.Helian: type_string = "Helian"; break;
+            case HelianPlanetType.Panthalassic: type_string = "Panthalassic"; break;
+        }
+        string to_append = "";
+        if (satellites.Count != 0)
+        {
+            to_append = ":";
+            foreach (Planetoid satellite in satellites)
+            {
+                to_append += "\n   " + satellite.ToString();
+            }
+        }
+        return type_string + to_append;
     }
 }
 
 class JovianPlanet : Planetoid
 {
-    public List<Planetoid> satellites = new List<Planetoid>();
-    public Rings rings = Rings.None;
+    private List<Planetoid> satellites = new List<Planetoid>();
+    private Ring rings = Ring.None;
+    private JovianPlanetType type;
 
     public JovianPlanet(OrbitRange orbit_range) : base(orbit_range)
     {
+        DetermineSatellites();
+        DetermineType();
     }
 
     public override void DetermineSatellites()
@@ -461,7 +685,7 @@ class JovianPlanet : Planetoid
             int sub_sub_satellite_roll = RandomTools.RollD6(1);
             if (sub_sub_satellite_roll <= 5)
             {
-                satellites.Add(new TerrestrialPlanet(orbit_range));
+                satellites.Add(new TerrestrialPlanet(orbit_range, true));
             }
             else
             {
@@ -471,12 +695,52 @@ class JovianPlanet : Planetoid
         }
         for (int i=0; i<satellite_roll; i++)
         {
-            satellites.Add(new DwarfPlanet(orbit_range, false, false, true));
+            satellites.Add(new DwarfPlanet(orbit_range, false, false, true, true));
         }
 
         int rings_roll = RandomTools.RollD6(1);
-        if (rings_roll <= 4) {rings = Rings.Minor;}
-        else {rings = Rings.Complex;}
+        if (rings_roll <= 4) {rings = Ring.Minor;}
+        else {rings = Ring.Complex;}
+    }
+
+    public void DetermineType()
+    {
+        if (orbit_range == OrbitRange.Epistellar)
+        {
+            int roll = RandomTools.RollD6(1);
+            if (roll <= 5) { type = JovianPlanetType.Jovian; }
+            else { type = JovianPlanetType.Chthonian; }
+        }
+    }
+
+    public override void AffectFromStarExpansion()
+    {
+        type = JovianPlanetType.Chthonian;
+        foreach (Planetoid p in satellites)
+        {
+            p.AffectFromStarExpansion();
+        }
+    }
+
+    public override string ToString()
+    {
+        string type_string = "";
+        switch (type)
+        {
+            case JovianPlanetType.Chthonian: type_string = "Chthonian"; break;
+            case JovianPlanetType.Jovian: type_string = "Jovian"; break;
+        }
+        string to_append = "";
+        if (satellites.Count != 0)
+        {
+            to_append = ":";
+            to_append += "\n   " + rings.ToString();
+            foreach (Planetoid satellite in satellites)
+            {
+                to_append += "\n   " + satellite.ToString();
+            }
+        }
+        return type_string + to_append;
     }
 }
 
@@ -491,6 +755,11 @@ class Program
             {
                 if (region.GetStarSystem(i, j) != null)
                 {
+                    if (!(i == 0 && j == 0))
+                    {
+                        Console.WriteLine("");
+                    }
+
                     Console.WriteLine("(" + i + "," + j + ")");
                     foreach (Star star in region.GetStarSystem(i, j).stars)
                     {
@@ -498,7 +767,7 @@ class Program
                         Console.WriteLine(star.orbits.Count);
                         foreach (Orbit orbit in star.orbits)
                         {
-                            Console.WriteLine(orbit);
+                            Console.WriteLine(orbit.ToString());
                         }
                     }
                 }
