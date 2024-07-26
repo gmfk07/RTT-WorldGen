@@ -1,6 +1,4 @@
 ﻿using System.Collections;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 
 enum SpectralType {A, F, G, K, M, L, D}
 enum CompanionOrbit {None, Tight, Close, Moderate, Distant}
@@ -10,6 +8,8 @@ enum DwarfPlanetType {Arean, Hebean, Meltball, Promethean, Rockball, Snowball, S
 enum TerrestrialPlanetType {Acheronian, Arid, JaniLithic, Oceanic, Tectonic, Telluric}
 enum HelianPlanetType {Helian, Asphodelian, Panthalassic}
 enum JovianPlanetType {Chthonian, Jovian}
+enum Habitation {Uninhabited, Outpost, Colony}
+enum Starport {None, Frontier, Poor, Routine, Good, Excellent}
 
 static class RandomTools
 {
@@ -341,6 +341,7 @@ class Orbit
     public OrbitRange orbit_range = OrbitRange.None;
     public Star star;
     public int desirability;
+    public Habitation habitation = Habitation.Uninhabited;
     public Orbit(Star star, OrbitRange orbit_range)
     {
         this.star = star;
@@ -366,6 +367,30 @@ class Orbit
     {
         return "Orbit";
     }
+
+    protected void TestHabitation()
+    {
+        if (RandomTools.RollD6(2) - 2 <= desirability)
+        {
+            habitation = Habitation.Colony;
+            HandleColonization();
+        }
+        else if (RandomTools.RollD6() <= 5)
+        {
+            habitation = Habitation.Outpost;
+            HandleOutpostPlaced();
+        }
+    }
+
+    protected virtual void HandleColonization()
+    {
+
+    }
+
+    protected virtual void HandleOutpostPlaced()
+    {
+
+    }
 }
 
 class Planetoid : Orbit
@@ -374,6 +399,12 @@ class Planetoid : Orbit
     protected int atmosphere;
     protected int hydrosphere;
     protected int biosphere;
+    protected int population;
+    protected int government;
+    protected int industry;
+    protected int law=0;
+    protected bool seeded;
+    protected Starport starport = Starport.None;
 
     public Planetoid(Star star, OrbitRange orbit_range) : base(star, orbit_range)
     {
@@ -405,6 +436,75 @@ class Planetoid : Orbit
         if (size == 0) {dm -= 1;}
         if (atmosphere == 6 || atmosphere == 8) {dm += 1;}
         desirability = dm;
+
+        TestHabitation();
+    }
+
+    protected override void HandleColonization()
+    {
+        int tl = 14;
+        int settlement = 4;
+        //RTT WorldGen has a maximum that potentially goes under the minimum, so I'm assuming the minimum takes precedence
+        int pop_max = desirability + RandomTools.RollD3() - RandomTools.RollD3();
+        population = Math.Min(tl + settlement - 9, pop_max);
+        population = Math.Max(population, 4);
+        government = population + RandomTools.RollD6(2) - 7;
+
+        if (size >= 1 && size <= 11 && atmosphere >= 2 && atmosphere <= 9)
+        {
+            biosphere = Math.Min(biosphere, RandomTools.RollD6() + 5);
+            seeded = true;
+        }
+
+        if (government != 0) {law = government + RandomTools.RollD6(2) - 7;}
+        int dm = law >= 1 && law <= 3 ? 1 : 0;
+        dm += law >= 6 && law <= 9 ? 1 : 0;
+        dm += law >= 10 && law <= 3 ? 12 : 0;
+        dm += law >= 13 ? 1 : 0;
+        dm += (atmosphere >= 0 && atmosphere <= 4) || atmosphere == 7 || atmosphere >= 9 || hydrosphere == 15 ? 1 : 0;
+        dm += (tl >= 12 && tl <= 14) ? 1 : 0;
+        dm += tl >= 15 ? 1 : 0;
+        if (population != 0) {industry = population + RandomTools.RollD6(2) - 7 + dm;}
+
+        if (industry == 0) {population -= 1;}
+        if (industry >= 4 && industry <= 9) {
+            if (atmosphere == 3) { atmosphere = 2; }
+            if (atmosphere == 5) { atmosphere = 4; }
+            if (atmosphere == 6) { atmosphere = 7; }
+            if (atmosphere == 8) { atmosphere = 9; }
+        }
+        if (industry >= 10)
+        {
+            if (RandomTools.RollD6() >= 4) {population += 1;}
+            else {
+                population += 2;
+                if (atmosphere == 3) { atmosphere = 2; }
+                if (atmosphere == 5) { atmosphere = 4; }
+                if (atmosphere == 6) { atmosphere = 7; }
+                if (atmosphere == 8) { atmosphere = 9; }
+            }
+        }
+
+        int roll = RandomTools.RollD6(2) + industry - 7 + 1;
+        if (roll <= 2) { starport = Starport.None; }
+        else if (roll <= 4) { starport = Starport.Frontier; }
+        else if (roll <= 6) { starport = Starport.Poor; }
+        else if (roll <= 8) { starport = Starport.Routine; }
+        else if (roll <= 10) { starport = Starport.Good; }
+        else { starport = Starport.Excellent; }
+
+        if ((population >= 1 || industry >= 5) && starport == Starport.None) { starport = Starport.Frontier; }
+    }
+
+    protected override void HandleOutpostPlaced()
+    {
+        population = Math.Clamp(RandomTools.RollD3() + desirability, 0, 4);
+        government = population == 0 ? 0 : Math.Clamp(population + RandomTools.RollD6() - 7, 0, 6);
+
+        if (population >= 0 && starport == Starport.None)
+        {
+            starport = Starport.Frontier;
+        }
     }
 }
 
@@ -416,6 +516,7 @@ class AsteroidBelt : Orbit
     {
         DetermineSatellites();
         DetermineDesirability();
+        TestHabitation();
     }
 
     public override void DetermineSatellites()
@@ -450,8 +551,10 @@ class AsteroidBelt : Orbit
     public override string ToString()
     {
         string to_append = "";
+        if (habitation == Habitation.Outpost) {to_append += " Outpost";}
+        else if (habitation == Habitation.Colony) {to_append += " Colony";}
         if (dwarf_planet != null) { to_append += ":\n   " + dwarf_planet.ToString(); }
-        return "Asteroid Belt (Desire:" + desirability + ")" + to_append ;
+        return "Asteroid Belt (Desire: " + desirability + ")" + to_append;
     }
 }
 
@@ -634,6 +737,8 @@ class DwarfPlanet : Planetoid
         type_string += "]";
         type_string += " (Size: " + size + ", Atm: " + atmosphere + ", Hydro: " + hydrosphere + ", Bio: " + biosphere + ", OR: " + orbit_range + ", Desire: " + desirability + ")";
         string to_append = "";
+        if (habitation == Habitation.Outpost) {to_append += " Outpost (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + " Port: " + starport + ")";}
+        else if (habitation == Habitation.Colony) {to_append += " Colony (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + ", Port: " + starport + ")";}
         if (companion != null) { to_append += ":\n   " + companion.ToString(); }
         return type_string + to_append;
     }
@@ -641,6 +746,7 @@ class DwarfPlanet : Planetoid
     public override void AffectFromStarExpansion()
     {
         type = DwarfPlanetType.Stygian;
+        GenerateWorld();
         if (companion != null)
         {
             companion.AffectFromStarExpansion();
@@ -701,6 +807,7 @@ class TerrestrialPlanet : Planetoid
     public override void AffectFromStarExpansion()
     {
         type = TerrestrialPlanetType.Acheronian;
+        GenerateWorld();
         if (satellite != null)
         {
             satellite.AffectFromStarExpansion();
@@ -806,6 +913,8 @@ class TerrestrialPlanet : Planetoid
         type_string += "]";
         type_string += " (Size: " + size + ", Atm: " + atmosphere + ", Hydro: " + hydrosphere + ", Bio: " + biosphere + ", OR: " + orbit_range + ", Desire: " + desirability + ")";
         string to_append = "";
+        if (habitation == Habitation.Outpost) {to_append += " Outpost (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + " Port: " + starport + ")";}
+        else if (habitation == Habitation.Colony) {to_append += " Colony (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + " Port: " + starport + ")";}
         if (satellite != null) { to_append += ":\n   " + satellite.ToString(); }
         return type_string + to_append;
     }
@@ -864,6 +973,7 @@ class HelianPlanet : Planetoid
     public override void AffectFromStarExpansion()
     {
         type = HelianPlanetType.Asphodelian;
+        GenerateWorld();
         foreach (Planetoid p in satellites)
         {
             p.AffectFromStarExpansion();
@@ -918,6 +1028,8 @@ class HelianPlanet : Planetoid
         type_string += "]";
         type_string += " (Size: " + size + ", Atm: " + atmosphere + ", Hydro: " + hydrosphere + ", Bio: " + biosphere + ", OR: " + orbit_range + ", Desire: " + desirability + ")";
         string to_append = "";
+        if (habitation == Habitation.Outpost) {to_append += " Outpost (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + ", Port: " + starport + ")";}
+        else if (habitation == Habitation.Colony) {to_append += " Colony (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + ", Port: " + starport + ")";}
         if (satellites.Count != 0)
         {
             to_append += ":";
@@ -983,6 +1095,7 @@ class JovianPlanet : Planetoid
     public override void AffectFromStarExpansion()
     {
         type = JovianPlanetType.Chthonian;
+        GenerateWorld();
         foreach (Planetoid p in satellites)
         {
             p.AffectFromStarExpansion();
@@ -1028,6 +1141,8 @@ class JovianPlanet : Planetoid
         type_string += "]";
         type_string += " (Size: " + size + ", Atm: " + atmosphere + ", Hydro: " + hydrosphere + ", Bio: " + biosphere + ", OR: " + orbit_range + ", Desire: " + desirability + ")";
         string to_append = "";
+        if (habitation == Habitation.Outpost) {to_append += " Outpost (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + ", Port: " + starport + ")";}
+        else if (habitation == Habitation.Colony) {to_append += " Colony (Pop: " + population + ", Gov: " + government + ", Law: " + law + ", Ind: " + industry + ", Port: " + starport + ")";}
         if (satellites.Count != 0)
         {
             to_append += ":";
@@ -1045,10 +1160,10 @@ class Program
 {
     static void Main(string[] args)
     {
-        StellarRegion region = new StellarRegion(6, 6);
-        for (int i=0; i<6; i++)
+        StellarRegion region = new StellarRegion(12, 12);
+        for (int i=0; i<12; i++)
         {
-            for (int j=0; j<6; j++)
+            for (int j=0; j<12; j++)
             {
                 if (region.GetStarSystem(i, j) != null)
                 {
