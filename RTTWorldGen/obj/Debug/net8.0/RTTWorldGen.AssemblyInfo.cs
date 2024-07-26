@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RTTWorldGen")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b87de5c68952b97856414825dce636b6635a6cf9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+711b1780449925bfafbd6d5906af8db908333fb2")]
 [assembly: System.Reflection.AssemblyProductAttribute("RTTWorldGen")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RTTWorldGen")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
