@@ -52,7 +52,6 @@ class AsteroidBelt : Orbit
         string to_append = "";
         //Outpost and colony are the same thing for asteroid belts
         if (habitation == Habitation.Outpost || habitation == Habitation.Colony) {to_append += " Outpost";}
-        if (dwarf_planet != null) { to_append += ":\n\t\t" + dwarf_planet.ToString(); }
         if (bases.Count > 0)
         {
             to_append += " Bases: ";
@@ -64,6 +63,7 @@ class AsteroidBelt : Orbit
                 to_append += b;
             }
         }
+        if (dwarf_planet != null) { to_append += ":\n\t\t" + dwarf_planet.ToString(); }
         return "Asteroid Belt (Desire: " + desirability + ")" + to_append;
     }
 }
